@@ -1,0 +1,50 @@
+/**
+ * taskService — the only place that knows about the backend's HTTP contract.
+ *
+ * Every function unwraps the unified { success, data, message } envelope and
+ * throws a plain Error(message) when the request fails, so callers (useTasks)
+ * only ever deal with either a resolved value or a rejected promise.
+ *
+ * The frontend and backend run on different origins with no Vite dev proxy
+ * configured (per specs/002-task-crud-frontend/research.md — CORS on the
+ * backend handles this instead), so requests target the backend's own origin
+ * directly rather than a relative path.
+ */
+
+const API_BASE = 'http://localhost:4000/api/tasks'
+
+async function unwrap(response) {
+  const body = await response.json()
+  if (!response.ok || !body.success) {
+    throw new Error(body.message || 'Request failed')
+  }
+  return body.data
+}
+
+export async function listTasks() {
+  const response = await fetch(API_BASE)
+  return unwrap(response)
+}
+
+export async function createTask(values) {
+  const response = await fetch(API_BASE, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(values),
+  })
+  return unwrap(response)
+}
+
+export async function updateTask(id, changes) {
+  const response = await fetch(`${API_BASE}/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(changes),
+  })
+  return unwrap(response)
+}
+
+export async function deleteTask(id) {
+  const response = await fetch(`${API_BASE}/${id}`, { method: 'DELETE' })
+  return unwrap(response)
+}

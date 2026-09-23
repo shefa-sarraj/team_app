@@ -29,4 +29,9 @@ const updateTaskSchema = z.object({
   status: status.optional(),
 });
 
-module.exports = { createTaskSchema, updateTaskSchema };
+const listTasksQuerySchema = z.object({
+  priority: priority.optional(),
+  assignee: z.string().min(1).optional(),
+});
+
+module.exports = { createTaskSchema, updateTaskSchema, listTasksQuerySchema };

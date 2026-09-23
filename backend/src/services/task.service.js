@@ -15,9 +15,25 @@ function toWireStatus(task) {
   return { ...task, status: 'in-progress' };
 }
 
-async function listTasks() {
-  const tasks = await prisma.task.findMany({ orderBy: { createdAt: 'desc' } });
+async function listTasks(filters = {}) {
+  const where = {};
+  if (filters.priority) where.priority = filters.priority;
+  if (filters.assignee) where.assignee = filters.assignee;
+
+  const tasks = await prisma.task.findMany({
+    where,
+    orderBy: { createdAt: 'desc' },
+  });
   return tasks.map(toWireStatus);
+}
+
+async function listAssignees() {
+  const rows = await prisma.task.findMany({
+    distinct: ['assignee'],
+    select: { assignee: true },
+    orderBy: { assignee: 'asc' },
+  });
+  return rows.map((row) => row.assignee);
 }
 
 async function getTaskById(id) {
@@ -55,4 +71,4 @@ async function deleteTask(id) {
   }
 }
 
-module.exports = { listTasks, getTaskById, createTask, updateTask, deleteTask };
+module.exports = { listTasks, listAssignees, getTaskById, createTask, updateTask, deleteTask };

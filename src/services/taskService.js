@@ -21,8 +21,28 @@ async function unwrap(response) {
   return body.data
 }
 
-export async function listTasks() {
-  const response = await fetch(API_BASE)
+// 'all' is the frontend's own "no filter on this field" sentinel — the
+// backend's priority enum would reject it, so a key is omitted entirely
+// whenever its value is 'all', empty, or undefined, rather than sent as-is.
+function buildQuery(filters = {}) {
+  const params = new URLSearchParams()
+  if (filters.priority && filters.priority !== 'all') {
+    params.set('priority', filters.priority)
+  }
+  if (filters.assignee && filters.assignee !== 'all') {
+    params.set('assignee', filters.assignee)
+  }
+  const query = params.toString()
+  return query ? `?${query}` : ''
+}
+
+export async function listTasks(filters = {}) {
+  const response = await fetch(`${API_BASE}${buildQuery(filters)}`)
+  return unwrap(response)
+}
+
+export async function listAssignees() {
+  const response = await fetch(`${API_BASE}/assignees`)
   return unwrap(response)
 }
 

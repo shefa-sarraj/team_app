@@ -1,18 +1,28 @@
 /**
  * useTasks — the single owner of task state and all task operations.
  *
- * Components never mutate tasks directly; they call these handlers. Tasks are
- * loaded from and persisted to the real backend via taskService; on any
- * failure the operation leaves `tasks` unchanged and appends a message to
- * `errors` instead (rendered as a Toast) rather than updating state
- * optimistically and silently.
+ * Components never mutate tasks directly; they call these handlers. `tasks`
+ * reflects the given `{ priority, assignee }` filters, applied server-side —
+ * the effect re-runs whenever either changes. `assignees` is loaded
+ * separately and stays independent of the active filter (Phase 3, User
+ * Story 2), so the assignee dropdown always offers every real name.
+ *
+ * On any mutation failure the operation leaves `tasks` unchanged and appends
+ * a message to `errors` (rendered as a Toast) rather than updating state
+ * optimistically and silently. On success, both `tasks` and `assignees` are
+ * refetched rather than locally patched, so the displayed set always stays
+ * consistent with the active filter (see specs/003-filtering-assignee-
+ * aggregation/research.md).
  */
 
 import { useEffect, useState } from 'react'
 import * as taskService from '../services/taskService'
 
-export function useTasks() {
+export function useTasks(filters = {}) {
+  const { priority, assignee } = filters
+
   const [tasks, setTasks] = useState([])
+  const [assignees, setAssignees] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [errors, setErrors] = useState([])
 
@@ -24,18 +34,56 @@ export function useTasks() {
     setErrors((prev) => prev.filter((error) => error.id !== id))
   }
 
-  // Load once on mount from the real backend.
+  async function refetchTasks() {
+    try {
+      const data = await taskService.listTasks({ priority, assignee })
+      setTasks(data)
+    } catch {
+      pushError('Failed to load tasks')
+    }
+  }
+
+  async function refetchAssignees() {
+    try {
+      const data = await taskService.listAssignees()
+      setAssignees(data)
+    } catch {
+      pushError('Failed to load assignees')
+    }
+  }
+
+  // Load tasks on mount and whenever the active filter changes.
   useEffect(() => {
     let cancelled = false
 
     async function load() {
+      setIsLoading(true)
       try {
-        const data = await taskService.listTasks()
+        const data = await taskService.listTasks({ priority, assignee })
         if (!cancelled) setTasks(data)
       } catch {
         if (!cancelled) pushError('Failed to load tasks')
       } finally {
         if (!cancelled) setIsLoading(false)
+      }
+    }
+
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [priority, assignee])
+
+  // Load the full assignee list once, independent of the active filter.
+  useEffect(() => {
+    let cancelled = false
+
+    async function load() {
+      try {
+        const data = await taskService.listAssignees()
+        if (!cancelled) setAssignees(data)
+      } catch {
+        if (!cancelled) pushError('Failed to load assignees')
       }
     }
 
@@ -49,8 +97,9 @@ export function useTasks() {
 
   async function addTask(values) {
     try {
-      const created = await taskService.createTask(values)
-      setTasks((prev) => [created, ...prev])
+      await taskService.createTask(values)
+      await refetchTasks()
+      await refetchAssignees()
     } catch {
       pushError('Failed to add task')
     }
@@ -58,8 +107,9 @@ export function useTasks() {
 
   async function updateTask(id, changes) {
     try {
-      const updated = await taskService.updateTask(id, changes)
-      setTasks((prev) => prev.map((task) => (task.id === id ? updated : task)))
+      await taskService.updateTask(id, changes)
+      await refetchTasks()
+      await refetchAssignees()
     } catch {
       pushError('Failed to update task')
     }
@@ -68,7 +118,8 @@ export function useTasks() {
   async function deleteTask(id) {
     try {
       await taskService.deleteTask(id)
-      setTasks((prev) => prev.filter((task) => task.id !== id))
+      await refetchTasks()
+      await refetchAssignees()
     } catch {
       pushError('Failed to delete task')
     }
@@ -84,6 +135,7 @@ export function useTasks() {
 
   return {
     tasks,
+    assignees,
     isLoading,
     errors,
     dismissError,
@@ -91,7 +143,6 @@ export function useTasks() {
     updateTask,
     deleteTask,
     moveTask,
-    setTasks,
   }
 }
 

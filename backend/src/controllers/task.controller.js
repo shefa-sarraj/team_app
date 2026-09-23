@@ -3,8 +3,17 @@ const { success } = require('../utils/ApiResponse');
 
 async function listTasks(req, res, next) {
   try {
-    const tasks = await taskService.listTasks();
+    const tasks = await taskService.listTasks(req.query);
     res.status(200).json(success(tasks));
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function listAssignees(req, res, next) {
+  try {
+    const assignees = await taskService.listAssignees();
+    res.status(200).json(success(assignees));
   } catch (err) {
     next(err);
   }
@@ -46,4 +55,4 @@ async function deleteTask(req, res, next) {
   }
 }
 
-module.exports = { listTasks, getTask, createTask, updateTask, deleteTask };
+module.exports = { listTasks, listAssignees, getTask, createTask, updateTask, deleteTask };

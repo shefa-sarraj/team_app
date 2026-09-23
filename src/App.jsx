@@ -8,7 +8,7 @@
  * STAGE 6: filter the board by priority and/or assignee.
  */
 
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import Board from './components/board/Board'
 import ConfirmDialog from './components/common/ConfirmDialog'
 import Modal from './components/common/Modal'
@@ -20,18 +20,6 @@ import { useTheme } from './hooks/useTheme'
 const NO_FILTERS = { priority: 'all', assignee: 'all' }
 
 function App() {
-  const {
-    tasks,
-    isLoading,
-    errors,
-    dismissError,
-    addTask,
-    updateTask,
-    deleteTask,
-    moveTask,
-  } = useTasks()
-  const { theme, toggleTheme } = useTheme()
-
   // Task form: null while closed. When open, `editingTask` is null for "add"
   // or the task object for "edit".
   const [isFormOpen, setIsFormOpen] = useState(false)
@@ -40,26 +28,22 @@ function App() {
   // Delete confirmation: the task awaiting confirmation, or null.
   const [taskToDelete, setTaskToDelete] = useState(null)
 
-  // Filters: 'all' on a field means "don't filter by it".
+  // Filters: 'all' on a field means "don't filter by it". Applied
+  // server-side — useTasks refetches whenever this changes.
   const [filters, setFilters] = useState(NO_FILTERS)
 
-  // Assignee dropdown options — every name that appears on any task, so you
-  // can always filter by anyone regardless of the current filter.
-  const assigneeOptions = useMemo(() => {
-    const names = new Set(tasks.map((task) => task.assignee).filter(Boolean))
-    return [...names].sort((a, b) => a.localeCompare(b))
-  }, [tasks])
-
-  // The list handed to the board. Recomputed only when tasks or filters change.
-  const visibleTasks = useMemo(() => {
-    return tasks.filter((task) => {
-      const priorityOk =
-        filters.priority === 'all' || task.priority === filters.priority
-      const assigneeOk =
-        filters.assignee === 'all' || task.assignee === filters.assignee
-      return priorityOk && assigneeOk
-    })
-  }, [tasks, filters])
+  const {
+    tasks,
+    assignees,
+    isLoading,
+    errors,
+    dismissError,
+    addTask,
+    updateTask,
+    deleteTask,
+    moveTask,
+  } = useTasks(filters)
+  const { theme, toggleTheme } = useTheme()
 
   function openAddForm() {
     setEditingTask(null)
@@ -93,10 +77,10 @@ function App() {
   return (
     <>
       <Board
-        tasks={visibleTasks}
+        tasks={tasks}
         isLoading={isLoading}
         filters={filters}
-        assigneeOptions={assigneeOptions}
+        assigneeOptions={assignees}
         theme={theme}
         onToggleTheme={toggleTheme}
         onFilterChange={setFilters}

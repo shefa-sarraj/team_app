@@ -11,7 +11,8 @@
  * directly rather than a relative path.
  */
 
-const API_BASE = 'http://localhost:4000/api/tasks'
+const API_ORIGIN = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000'
+const API_BASE = `${API_ORIGIN}/api/tasks`
 
 async function unwrap(response) {
   const body = await response.json()

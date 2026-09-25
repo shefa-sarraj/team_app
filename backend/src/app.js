@@ -8,11 +8,19 @@ const errorHandler = require('./middlewares/errorHandler');
 
 const app = express();
 
+// العناوين المسموح لها بالاتصال (السماح للتطوير المحلي + رابط Vercel)
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:5174',
+  env.CLIENT_ORIGIN
+].filter(Boolean);
+
 app.use(
   cors({
-    origin: env.CLIENT_ORIGIN,
+    origin: allowedOrigins,
   })
 );
+
 app.use(express.json());
 
 app.use('/api', healthRoutes);
